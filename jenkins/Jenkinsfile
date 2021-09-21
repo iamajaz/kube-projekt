@@ -1,0 +1,47 @@
+pipeline {
+    agent any
+    stages {
+    stage('Preparation') {
+        steps {
+            git credentialsId: 'GitHub', url: "https://github.com/${ORG_NAME}/${SVC_NAME}"
+        }
+    }
+    
+    stage('build') {
+        steps {
+            sh 'npm --version'
+            sh 'git log --reverse -1'
+            sh 'npm install'
+            }
+    }
+    stage('Docker Build') {
+        steps {
+            sh "docker build -t iamajaz/first-try-node:${env.BUILD_NUMBER} ."
+            }
+    }
+    stage('Docker Push') {
+        steps {
+            withCredentials([usernamePassword(credentialsId: 'dockerhub', passwordVariable: 'dockerHubPassword', usernameVariable: 'dockerHubUser')]) {
+            sh "docker login -u ${env.dockerHubUser} -p ${env.dockerHubPassword}"
+            sh "docker push iamajaz/first-try-node:${env.BUILD_NUMBER}"
+            }
+        }
+    }
+    stage('Apply Kubernetes Files') {
+        steps {
+            withKubeConfig([credentialsId: 'kubeconfig']) {
+            sh 'cat node-js.yaml | sed "s/{{BUILD_NUMBER}}/$BUILD_NUMBER/g" | kubectl apply -f -'
+            sh 'kubectl apply -f service.yaml'
+            }
+        }
+    }
+}
+post {
+        success {
+            slackSend(message: "Pipeline is successfully completed.")
+        }
+        failure {
+            slackSend(message: "Pipeline failed. Please check the logs.")
+        }
+    }
+}

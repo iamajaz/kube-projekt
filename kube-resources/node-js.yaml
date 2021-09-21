@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodejs-dep
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: test-nodejs
+    spec:
+      containers: 
+      - name: test-nodejs
+        image: iamajaz/first-try-node:{{BUILD_NUMBER}}
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-service-nodejs
+  labels:
+    app: test-service-nodejs
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 8080
+    targetPort: 8080
+  selector:
+    app: test-nodejs
